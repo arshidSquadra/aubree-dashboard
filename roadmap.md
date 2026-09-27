@@ -1,0 +1,18 @@
+# Brand Name Owner dashboard roadmap
+- [x] Rebuild the shared shell, role-aware sidebar, date picker, and responsive header
+- [x] Create deterministic bakery, outlet, operations, and forecast mock data
+- [x] Build Owner Overview and Sales
+- [x] Build Marketing with approvals and audit updates
+- [x] Build deep Operations workflows and BOM recalculation
+- [x] Build Reports, view-only HR and Accounts, and Audit Log
+- [x] Build deterministic Ask AI panel across all pages
+- [x] Add Coming soon states for the three future roles
+- [x] Validate interactions and responsive layouts
+- [x] Add independent Last 7 days, Last month, and custom date filters to historical graphs
+- [x] Rebuild Operations around forecasts, stores, cloud kitchens, inventory, actions, and waste
+- [x] Add visible Trends & Forecast navigation to every owner section
+- [x] Validate the new store and kitchen views across desktop and mobile
+- [x] Brief P1: net sales/GST, 12 hubs, top/bottom sellers, thresholds, activity log, reconciliation
+- [x] Brief P2: exceptions-first tiles, green/orange/red coding, one-click indent
+- [x] Brief P3: escalation chain with configurable settings
+- [ ] Brief P4–P6: consolidated indents, batch production, warehouse, production screens, dispatch, ML layer (next phase)
