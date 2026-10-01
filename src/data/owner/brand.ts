@@ -1,6 +1,6 @@
 // Change these two values to rebrand the whole dashboard.
 export const BRAND = {
-  name: "Brand Name",
-  initials: "BN",
+  name: "Aubree",
+  initials: "AB",
   tagline: "Bakery & Cloud Kitchen · Bengaluru",
 };

@@ -44,6 +44,7 @@ export default function Operations() {
   const [delayDays, setDelayDays] = useState(30);
   const [bomProduct, setBomProduct] = useState("belgian");
   const [bomScope, setBomScope] = useState<string>("ind");
+  const [planDrawer, setPlanDrawer] = useState<"store" | "kitchen" | null>(null);
   const [tileDetail, setTileDetail] = useState<"production" | "confidence" | "surge" | "exceptions" | null>(null);
 
   const selectedStoreData = stores.find((store) => store.outletId === selectedStore) ?? stores[0];
@@ -179,7 +180,7 @@ export default function Operations() {
           </Panel>
           {selectedStoreData && <div className="grid gap-5 xl:grid-cols-3">
             <Panel title={`${selectedStoreData.name} · tomorrow`} subtitle="Clean store-level prediction" className="xl:col-span-1">
-              <div className="grid grid-cols-2 gap-3"><StatTile label="Predicted units" value={`${selectedStoreData.units}`} hint={`${selectedStoreData.change >= 0 ? "+" : ""}${selectedStoreData.change}% vs baseline`} /><StatTile label="Revenue" value={formatINRCompact(selectedStoreData.revenue)} hint={`${selectedStoreData.confidence}% confidence`} tone="green" /></div>
+              <div className="grid grid-cols-2 gap-3"><StatTile label="Tomorrow's plan" onClick={() => setPlanDrawer("store")} value={`${selectedStoreData.units}`} hint={`${selectedStoreData.change >= 0 ? "+" : ""}${selectedStoreData.change}% vs baseline`} /><StatTile label="Revenue" value={formatINRCompact(selectedStoreData.revenue)} hint={`${selectedStoreData.confidence}% confidence`} tone="green" /></div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-lg bg-destructive-bg p-2"><b className="block text-destructive">{selectedStoreData.red}</b>Urgent</div><div className="rounded-lg bg-warning-bg p-2"><b className="block text-warning">{selectedStoreData.amber}</b>Watch</div><div className="rounded-lg bg-success-bg p-2"><b className="block text-success">{selectedStoreData.green}</b>Healthy</div></div>
             </Panel>
             <Panel title="Product inventory & prediction" subtitle="Finished goods at this store" className="xl:col-span-2">
@@ -187,6 +188,18 @@ export default function Operations() {
                 rows={storeInventory.map((row) => ({ p: row.product, s: <span className="inline-flex items-center gap-1.5"><RagDot rag={row.rag} />{statusMeta[row.rag].label.split(" · ")[0]}</span>, h: row.onHand, n: row.need, r: row.refill }))} />
             </Panel>
           </div>}
+          {selectedStoreData && (() => {
+            const rows = plan.map((p) => { const units = p.outlets.find((o) => o.outletId === selectedStore)?.units ?? 0; const prod = productById(p.productId); const inv = storeInventory.find((r) => r.product === p.name); return { name: p.name, units, revenue: units * prod.price, shelf: prod.shelfLifeHrs, onHand: inv?.onHand, refill: inv?.refill }; }).filter((r) => r.units > 0).sort((a, b) => b.units - a.units);
+            const total = rows.reduce((a, r) => a + r.units, 0) || 1;
+            return <ControlledDrawer open={planDrawer === "store"} onOpenChange={(v) => !v && setPlanDrawer(null)} title={`Tomorrow's plan · ${selectedStoreData.name}`} description="What this store should stock and sell tomorrow">
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-xs"><span><b>{selectedStoreData.units}</b> units</span><span><b>{formatINRCompact(selectedStoreData.revenue)}</b> predicted revenue</span><span><b>{selectedStoreData.confidence}%</b> confidence</span><span className={selectedStoreData.change >= 0 ? "text-success" : "text-destructive"}>{selectedStoreData.change >= 0 ? "+" : ""}{selectedStoreData.change}% vs baseline</span></div>
+                <Note>Demand drivers: rain expected in Bengaluru and Friday evening dessert demand. {selectedStoreData.red} products are urgent — refill before opening.</Note>
+                <DataTable columns={[{ key: "p", label: "Product" }, { key: "u", label: "Units", align: "right" }, { key: "s", label: "Share", align: "right" }, { key: "h", label: "On hand", align: "right" }, { key: "f", label: "Refill", align: "right" }, { key: "r", label: "Revenue", align: "right" }, { key: "l", label: "Shelf life", align: "right" }]}
+                  rows={rows.map((r) => ({ p: r.name, u: <b>{r.units}</b>, s: `${Math.round((r.units / total) * 100)}%`, h: r.onHand ?? "—", f: r.refill ?? "—", r: formatINRCompact(r.revenue), l: `${r.shelf}h` }))} />
+              </div>
+            </ControlledDrawer>;
+          })()}
         </TabsContent>
 
         <TabsContent value="kitchens" className="space-y-5">
@@ -198,7 +211,7 @@ export default function Operations() {
           }><div className="text-xs text-muted-foreground">{kitchens.length} kitchens · {kitchens.reduce((s, k) => s + k.units, 0)} units planned for tomorrow</div></Panel>
           {selectedKitchenData && <div className="grid gap-5 xl:grid-cols-3">
             <Panel title={selectedKitchenData.name} subtitle={`${selectedKitchenData.area} · serves ${selectedKitchenData.serves.join(", ")}`}>
-              <div className="grid grid-cols-2 gap-3"><StatTile label="Tomorrow's plan" value={`${selectedKitchenData.units}`} hint={`+${selectedKitchenData.change}% demand`} tone="green" /><StatTile label="Capacity use" value={`${selectedKitchenData.utilization}%`} hint={`${selectedKitchenData.capacity} unit capacity`} tone={selectedKitchenData.utilization > 85 ? "amber" : "default"} /></div>
+              <div className="grid grid-cols-2 gap-3"><StatTile label="Tomorrow's plan" onClick={() => setPlanDrawer("kitchen")} value={`${selectedKitchenData.units}`} hint={`+${selectedKitchenData.change}% demand`} tone="green" /><StatTile label="Capacity use" value={`${selectedKitchenData.utilization}%`} hint={`${selectedKitchenData.capacity} unit capacity`} tone={selectedKitchenData.utilization > 85 ? "amber" : "default"} /></div>
               <div className="mt-3 rounded-lg border p-3 text-xs"><div className="flex justify-between"><span className="text-muted-foreground">First dispatch</span><b>{selectedKitchenData.dispatch}</b></div><div className="mt-2 flex justify-between"><span className="text-muted-foreground">Forecast confidence</span><b>{selectedKitchenData.confidence}%</b></div></div>
             </Panel>
             <Panel title="Ingredient inventory" subtitle="Required for tomorrow's plan" className="xl:col-span-2">
@@ -206,6 +219,21 @@ export default function Operations() {
                 rows={kitchenInventory.map((row) => ({ i: row.ingredient, s: <span className="inline-flex items-center gap-1.5"><RagDot rag={row.rag} />{statusMeta[row.rag].label.split(" · ")[0]}</span>, h: `${row.onHand} ${row.unit}`, n: `${row.required} ${row.unit}`, r: `${row.refill} ${row.unit}` }))} />
             </Panel>
           </div>}
+          {selectedKitchenData && (() => {
+            const w = plan.map((p) => p.units); const sum = w.reduce((a, b) => a + b, 0) || 1;
+            let left = selectedKitchenData.units;
+            const rows = plan.map((p, i) => { const units = i === plan.length - 1 ? left : Math.round((p.units / sum) * selectedKitchenData.units); left -= units; const prod = productById(p.productId); return { name: p.name, units: Math.max(0, units), revenue: Math.max(0, units) * prod.price, shelf: prod.shelfLifeHrs }; }).filter((r) => r.units > 0).sort((a, b) => b.units - a.units);
+            return <ControlledDrawer open={planDrawer === "kitchen"} onOpenChange={(v) => !v && setPlanDrawer(null)} title={`Tomorrow's plan · ${selectedKitchenData.name}`} description={`Production for ${selectedKitchenData.serves.join(", ")}`}>
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-xs"><span><b>{selectedKitchenData.units}</b> units</span><span><b>{selectedKitchenData.utilization}%</b> of {selectedKitchenData.capacity} capacity</span><span><b>{selectedKitchenData.confidence}%</b> confidence</span><span>First dispatch <b>{selectedKitchenData.dispatch}</b></span></div>
+                {selectedKitchenData.ingredientRisk > 0 && <Note tone="warning">{selectedKitchenData.ingredientRisk} ingredients are short for this plan — procure before the morning batch.</Note>}
+                <DataTable columns={[{ key: "p", label: "Product" }, { key: "u", label: "Units to produce", align: "right" }, { key: "r", label: "Value", align: "right" }, { key: "l", label: "Shelf life", align: "right" }]}
+                  rows={rows.map((r) => ({ p: r.name, u: <b>{r.units}</b>, r: formatINRCompact(r.revenue), l: `${r.shelf}h` }))} />
+                <DataTable columns={[{ key: "i", label: "Ingredient" }, { key: "n", label: "Required", align: "right" }, { key: "h", label: "On hand", align: "right" }, { key: "r", label: "Procure", align: "right" }]}
+                  rows={kitchenInventory.map((row) => ({ i: row.ingredient, n: `${row.required} ${row.unit}`, h: `${row.onHand} ${row.unit}`, r: `${row.refill} ${row.unit}` }))} />
+              </div>
+            </ControlledDrawer>;
+          })()}
         </TabsContent>
 
         <TabsContent value="inventory" className="space-y-5">

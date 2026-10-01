@@ -1,14 +1,25 @@
 // Mock operational data: spoilage, SLA, marketing, HR, accounts, proposals.
-import type { ChannelId } from "./catalog";
+import { products, type ChannelId } from "./catalog";
+import { stockRows } from "./stockControl";
+import { getProductionPlan } from "@/services/forecastService";
 
 export type Priority = "P1" | "P2" | "P3";
 export type PriorityAction = {
   id: string; priority: Priority; outletId: string; title: string; reason: string; impact: number;
   actionLabel: string; doneLabel: string; auditAction: string;
 };
+// Stock-out items are derived from the same live stock + forecast data shown on Operations pages.
+const liveStock = (outletId: string, productId: string) => {
+  const onHand = stockRows.find((r) => r.id === `${outletId}-${productId}`)?.onHand ?? 0;
+  const need = getProductionPlan(1).find((p) => p.productId === productId)?.outlets.find((o) => o.outletId === outletId)?.units ?? 0;
+  const price = products.find((p) => p.id === productId)?.price ?? 0;
+  return { onHand, need, impact: Math.max(0, need - onHand) * price };
+};
+const s1 = liveStock("ind", "belgian");
+const s2 = liveStock("air", "macaron");
 export const priorityActions: PriorityAction[] = [
-  { id: "pa1", priority: "P1", outletId: "ind", title: "Stock-out risk: Belgian Dark Chocolate Cake", reason: "Only 3 units on hand vs 17 forecast for tomorrow. Evening surge expected (rain + Friday).", impact: 13300, actionLabel: "Authorize Dispatch", doneLabel: "Dispatch authorized", auditAction: "Dispatch authorized to Indiranagar" },
-  { id: "pa2", priority: "P1", outletId: "air", title: "Stock-out risk: Macaron Box (6)", reason: "Airport demand peaks 6–10 AM; 2 boxes left vs 14 forecast.", impact: 6480, actionLabel: "Authorize Dispatch", doneLabel: "Dispatch authorized", auditAction: "Dispatch authorized to Airport (KIA T2)" },
+  { id: "pa1", priority: "P1", outletId: "ind", title: "Stock-out risk: Belgian Dark Chocolate Cake", reason: `Only ${s1.onHand} units on hand vs ${s1.need} forecast for tomorrow. Evening surge expected (rain + Friday).`, impact: s1.impact, actionLabel: "Authorize Dispatch", doneLabel: "Dispatch authorized", auditAction: "Dispatch authorized to Indiranagar" },
+  { id: "pa2", priority: "P1", outletId: "air", title: "Stock-out risk: Macaron Box (6)", reason: `Airport demand peaks 6–10 AM; ${s2.onHand} boxes left vs ${s2.need} forecast.`, impact: s2.impact, actionLabel: "Authorize Dispatch", doneLabel: "Dispatch authorized", auditAction: "Dispatch authorized to Airport (KIA T2)" },
   { id: "pa3", priority: "P2", outletId: "kor", title: "Cancellations rising on Zomato", reason: "11 orders cancelled in 24h (rider delays). Penalty risk on SLA scorecard.", impact: 4200, actionLabel: "Escalate to Store", doneLabel: "Escalated", auditAction: "SLA escalation sent to Koramangala" },
   { id: "pa4", priority: "P2", outletId: "wtf", title: "Returned orders: damaged packaging", reason: "6 returns this week due to crushed cake boxes on Swiggy.", impact: 3100, actionLabel: "Notify Store", doneLabel: "Store notified", auditAction: "Packaging check requested at Whitefield" },
   { id: "pa5", priority: "P3", outletId: "ecy", title: "Shelf life > 36 hrs: Vanilla Cake × 8", reason: "Baked 38 hrs ago. Clear by end of day via bundle or transfer.", impact: 5200, actionLabel: "Execute Transfer", doneLabel: "Transfer executed", auditAction: "Transfer of 8 Vanilla Cakes from Electronic City to HSR Layout" },
