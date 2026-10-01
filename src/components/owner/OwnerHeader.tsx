@@ -1,9 +1,6 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { Bell, CalendarDays, ChevronDown, Menu, Sparkles, UserRound } from "lucide-react";
+import { Bell, ChevronDown, Menu, Sparkles, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -14,11 +11,10 @@ import { OwnerSidebar } from "./OwnerSidebar";
 import { BRAND } from "@/data/owner/brand";
 
 export function OwnerHeader() {
-  const { role, setRole, range, setRange, askOpen, setAskOpen, audit } = useOwner();
+  const { role, setRole, askOpen, setAskOpen, audit } = useOwner();
   const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
   const roleLabel = roles.find((r) => r.id === role)!.label;
-  const rangeLabel = range.from ? `${format(range.from, "d MMM")}${range.to ? ` – ${format(range.to, "d MMM")}` : ""}` : "Pick dates";
 
   return (
     <header className="fixed left-0 right-0 top-0 z-30 h-16 border-b bg-card lg:left-[248px]">
@@ -35,16 +31,6 @@ export function OwnerHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-2 px-2.5 text-[12px] font-normal" aria-label="Choose date range">
-                <CalendarDays className="h-4 w-4" /><span className="hidden md:inline">{rangeLabel}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar mode="range" selected={range} onSelect={(r) => r && setRange(r)} numberOfMonths={1} defaultMonth={range.from ?? new Date()} className={cn("p-3 pointer-events-auto")} />
-            </PopoverContent>
-          </Popover>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

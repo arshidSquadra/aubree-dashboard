@@ -7,7 +7,7 @@ const schema = z.object({
 });
 
 export const askClaude = createServerFn({ method: "POST" })
-  .validator((d) => schema.parse(d))
+  .inputValidator((d) => schema.parse(d))
   .handler(async ({ data }) => {
     const key = process.env["OPEN_ROUTER_KEY"];
     if (!key) return { ok: false as const, error: "AI is not configured." };

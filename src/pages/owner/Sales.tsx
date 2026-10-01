@@ -35,6 +35,7 @@ export default function Sales() {
   const outlets = getOutletSales(outletDays);
   const scale = ch === "all" ? 1 : channels.find((c) => c.id === ch)!.share;
   const tmr = getTomorrowForecast();
+  const tmrShown = ch === "all" ? tmr.byChannel : tmr.byChannel.filter((c) => c.id === ch);
   const marginMix = getChannelMix(marginDays);
   const matrix = getProductMatrix(productDays);
   const total = getChannelMix(trendDays).filter((m) => ch === "all" || m.id === ch).reduce((a, m) => a + m.revenue, 0);
@@ -65,13 +66,13 @@ export default function Sales() {
           <div className="grid gap-5 xl:grid-cols-3">
             <Panel title="Tomorrow's forecast" subtitle={`${tmr.weekday}, ${tmr.date}`} className="card-gradient" action={<SalesForecastDrawer />}>
               <div className="grid grid-cols-2 gap-3">
-                <div><div className="text-xs text-muted-foreground">Total units</div><div className="font-display text-2xl font-bold">{Math.round(tmr.units * scale)}</div></div>
-                <div><div className="text-xs text-muted-foreground">Revenue</div><div className="font-display text-2xl font-bold">{formatINRCompact(tmr.revenue * scale)}</div></div>
+                <div><div className="text-xs text-muted-foreground">Total units</div><div className="font-display text-2xl font-bold">{tmrShown.reduce((a, c) => a + c.units, 0)}</div></div>
+                <div><div className="text-xs text-muted-foreground">Revenue</div><div className="font-display text-2xl font-bold">{formatINRCompact(tmrShown.reduce((a, c) => a + c.revenue, 0))}</div></div>
                 <div><div className="text-xs text-muted-foreground">Model confidence</div><div className="font-semibold">{Math.round(tmr.confidence * 100)}%</div></div>
                 <div><div className="text-xs text-muted-foreground">Surge vs baseline</div><div className="font-semibold text-success">+{tmr.surgePct.toFixed(1)}%</div></div>
               </div>
               <div className="mt-4 space-y-1.5">
-                {tmr.byChannel.map((c) => (
+                {tmrShown.map((c) => (
                   <div key={c.id} className="flex items-center gap-2 text-xs">
                     <span className="w-28 truncate text-muted-foreground">{c.name}</span>
                     <div className="h-1.5 flex-1 rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(c.units / tmr.units) * 100 * 2.5}%` }} /></div>

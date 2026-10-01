@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AlertOctagon, BellRing, CheckCircle2, ClipboardCheck, PackageX, Settings2, ShieldAlert, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,20 +70,65 @@ export function IndentDialog({ row, onClose }: { row: StockViewRow | null; onClo
 }
 
 function StockList({ rows, onIndent, limit }: { rows: StockViewRow[]; onIndent: (r: StockViewRow) => void; limit?: number }) {
+  const { raiseIndent } = useOwner();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirm, setConfirm] = useState(false);
+  const [qtys, setQtys] = useState<Record<string, number>>({});
   const shown = limit ? rows.slice(0, limit) : rows;
+  const eligible = rows.filter((r) => !r.openIndent && r.status !== "green");
+  const chosen = eligible.filter((r) => selected.has(r.id));
+  const allOn = eligible.length > 0 && chosen.length === eligible.length;
+  const toggle = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const openConfirm = () => { setQtys(Object.fromEntries(chosen.map((r) => [r.id, r.reorder]))); setConfirm(true); };
+  const submit = () => {
+    chosen.forEach((r) => raiseIndent(r.locationId, r.productId, qtys[r.id] ?? r.reorder, r.location.name, r.product.name));
+    const units = chosen.reduce((a, r) => a + (qtys[r.id] ?? r.reorder), 0);
+    toast.success(`${chosen.length} indents raised`, { description: `${units} units across ${new Set(chosen.map((r) => r.locationId)).size} locations. Escalation timers stopped.` });
+    setSelected(new Set()); setConfirm(false);
+  };
   if (!rows.length) return <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Nothing here — all clear.</div>;
   return (
-    <div className="divide-y rounded-lg border">
-      {shown.map((r) => (
-        <div key={r.id} className={cn("flex flex-wrap items-center gap-3 px-3 py-2.5", statusMeta[r.status].row)}>
-          <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", statusMeta[r.status].dot)} />
-          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{r.product.name}</div><div className="truncate text-xs text-muted-foreground">{r.location.name} · {r.location.kind === "hub" ? "Hub" : "Store"}</div></div>
-          <div className="text-right text-xs tabular-nums"><b className="text-sm text-foreground">{r.onHand}</b> <span className="text-muted-foreground">/ min {r.min} · crit {r.critical}</span></div>
-          {r.openIndent ? <Badge variant="outline" className="text-[11px]">Indent {r.openIndent.status.toLowerCase()}</Badge> : r.status !== "green" && <Button size="sm" className="h-7 text-xs" onClick={() => onIndent(r)}>Raise Indent</Button>}
+    <>
+      {eligible.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium"><Checkbox checked={allOn} onCheckedChange={(v) => setSelected(v ? new Set(eligible.map((r) => r.id)) : new Set())} />Select all ({eligible.length})</label>
+          <span className="flex-1 text-xs text-muted-foreground">{chosen.length ? `${chosen.length} selected` : "Tick items to raise indents together"}</span>
+          {chosen.length > 0 && <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelected(new Set())}>Clear</Button>}
+          <Button size="sm" className="h-7 text-xs" disabled={!chosen.length} onClick={openConfirm}>Raise {chosen.length || ""} indent{chosen.length === 1 ? "" : "s"}</Button>
         </div>
-      ))}
-      {limit && rows.length > limit && <div className="px-3 py-2 text-xs text-muted-foreground">+ {rows.length - limit} more</div>}
-    </div>
+      )}
+      <div className="divide-y rounded-lg border">
+        {shown.map((r) => {
+          const can = !r.openIndent && r.status !== "green";
+          return (
+            <div key={r.id} className={cn("flex flex-wrap items-center gap-3 px-3 py-2.5", statusMeta[r.status].row)}>
+              {can ? <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={`Select ${r.product.name} at ${r.location.name}`} /> : <span className="w-4" />}
+              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", statusMeta[r.status].dot)} />
+              <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{r.product.name}</div><div className="truncate text-xs text-muted-foreground">{r.location.name} · {r.location.kind === "hub" ? "Hub" : "Store"}</div></div>
+              <div className="text-right text-xs tabular-nums"><b className="text-sm text-foreground">{r.onHand}</b> <span className="text-muted-foreground">/ min {r.min} · crit {r.critical}</span></div>
+              {r.openIndent ? <Badge variant="outline" className="text-[11px]">Indent {r.openIndent.status.toLowerCase()}</Badge> : can && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onIndent(r)}>Raise Indent</Button>}
+            </div>
+          );
+        })}
+        {limit && rows.length > limit && <div className="px-3 py-2 text-xs text-muted-foreground">+ {rows.length - limit} more</div>}
+      </div>
+      <Dialog open={confirm} onOpenChange={setConfirm}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Raise {chosen.length} indents</DialogTitle><DialogDescription>Suggested quantities are pre-filled — adjust any before confirming.</DialogDescription></DialogHeader>
+          <div className="max-h-[50vh] divide-y overflow-y-auto rounded-lg border">
+            {chosen.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 px-3 py-2">
+                <span className={cn("h-2 w-2 shrink-0 rounded-full", statusMeta[r.status].dot)} />
+                <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{r.product.name}</div><div className="truncate text-[11px] text-muted-foreground">{r.location.name} · on hand {r.onHand}</div></div>
+                <Input type="number" min={1} className="h-8 w-20 text-right" value={qtys[r.id] ?? r.reorder} onChange={(e) => setQtys((q) => ({ ...q, [r.id]: Math.max(1, Number(e.target.value) || 1) }))} />
+              </div>
+            ))}
+          </div>
+          <div className="text-right text-xs text-muted-foreground">Total <b className="text-foreground">{chosen.reduce((a, r) => a + (qtys[r.id] ?? r.reorder), 0)} units</b></div>
+          <DialogFooter><Button variant="outline" onClick={() => setConfirm(false)}>Cancel</Button><Button onClick={submit}>Confirm {chosen.length} indents</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
